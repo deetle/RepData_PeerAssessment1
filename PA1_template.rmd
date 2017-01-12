@@ -1,0 +1,376 @@
+---
+title: "RMarkdown Baby"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load and clean activity data 
+
+```{r Table}
+
+#
+# Read in data frame from activity.csv
+# The variables included in this dataset are below which are expresed as column names in the first row.
+#   steps     : Number of steps taking in a 5-minute interval (missing values are coded as NA ) 
+#   date      : The date on which the measurement was taken in YYYY-MM-DD format
+#   interval  : Identifier for the 5-minute interval in which measurement was taken
+# Excample 
+#          steps       date interval
+#        1    NA 2012-10-01        0
+#        2     8 2012-10-01        5
+# .......................
+#
+
+activityData = read.csv("activity.csv",header=T,colClasses=c("numeric","character","numeric"))
+
+#
+#  Convert date column from a string to a date fromat 
+#
+
+activityData$date = as.Date(activityData$date,"%Y-%m-%d" )
+
+#
+#  At this point activityData contanes the read in and cleaned up data 
+#
+
+print(head(activityData))
+
+
+``` 
+
+
+## Split data on date  
+
+
+
+```{r}
+
+#
+# Split data set on date so we can calcualte summary data for each day
+#
+
+activityDataOnDate = split(activityData,activityData$date)
+
+#
+#  Create 2 empty data frames that we  
+#  will use to store the steps summary data per day.
+# 
+
+# stepsSummaryDF  Data frame that has the NA replaced with 0
+#
+#          Date Total Steps Per Day Mean Steps Per Day Median Steps Per Day    Weekday
+#  1 2012-10-01                   0            0.00000                    0    weekday
+#  2 2012-10-02                 126            0.43750                    0    weekend
+#.....................................................................................
+
+stepsSummaryDF = data.frame( n   = character(0) ,     # Date string 
+                             n1  = numeric(0)   ,     
+                             n2  = numeric(0)   , 
+                             n3  = numeric(0)   ,
+                             n4  = character(0) )     # Weekday facter 
+
+# stepsSummaryNoNaDF  Data frame that has the NA rowes removed
+#
+#          Date Total Steps Per Day Mean Steps Per Day Median Steps Per Day   
+#  1 2012-10-01                   0            0.00000                    0   
+#  2 2012-10-02                 126            0.43750                    0 
+#..........................................................................
+
+stepsSummaryNoNaDF = data.frame( n  = character(0) ,                        # Create empty table 
+                                n1 = numeric(0)   , 
+                                n2 = numeric(0),
+                                n3 = numeric(0))     
+
+stepsSummaryDFDateColumnName               = "Date"                         # Define the 4 Column names 
+stepsSummaryDFTotalStepsPerDayColumnName   = "Total Steps Per Day"          
+stepsSummaryDFMeanStepsPerDayColumnName    = "Mean Steps Per Day"
+stepsSummaryDFMedianStepsPerDayColumnName  = "Median Steps Per Day"
+
+stepsSummaryDFColumnNames = c(stepsSummaryDFDateColumnName,
+                              stepsSummaryDFTotalStepsPerDayColumnName,     
+                              stepsSummaryDFMeanStepsPerDayColumnName, 
+                              stepsSummaryDFMedianStepsPerDayColumnName)  
+
+
+colnames(stepsSummaryDF) = stepsSummaryDFColumnNames                # Set the column names
+colnames(stepsSummaryNoNaDF) = stepsSummaryDFColumnNames            # Set the column names
+
+
+
+``` 
+
+## Calculate the steps sumarry data 
+
+
+
+```{r}
+
+#
+# Fill in the 2  "step" summary data frame.  
+#
+
+
+#
+#  Loop threw the split data day by day 
+# 
+
+for( singleDate in  names(activityDataOnDate )) {
+  
+
+  # Get the data frame 
+  singleDayActivityData = activityDataOnDate[[singleDate]]
+ 
+  # Creatre a filter to filter out the NA rows 
+  
+  singleDayActivityDataRowNaFilter = as.logical(rowSums(is.na(singleDayActivityData) == TRUE )) 
+  
+  # create a data frame that has the rows with NA data removed. 
+  
+  singleDayActivityNoNaData = singleDayActivityData[!singleDayActivityDataRowNaFilter,]
+
+  #
+  # Replace steps NA values with 0 ( for 0 steps ) 
+  # 
+
+  singleDayActivityData$steps[singleDayActivityDataRowNaFilter] = 0
+  
+  ##################################################
+  #
+  #  Calculate step summary data for current date ussing the data set 
+  #  that has NA values replaced with 0.  Filling in stepsSummaryDF
+  #  
+  ##################################################
+  
+  # Calcualte summary data 
+  
+  singleDayActivityDataSum = sum( singleDayActivityData$steps )          # Steps sum 
+  singleDayActivityDataMean = mean( singleDayActivityData$steps )        # Steps mean 
+  singleDayActivityDataMedian = median( singleDayActivityData$steps )    # Steps median 
+  
+  #
+  #  Create a data frame row with the sumary data for a single day 
+  #
+  
+  singleDayActivityDataSummaryRow = data.frame( singleDate,
+                                                singleDayActivityDataSum ,      # Sum value 
+                                                singleDayActivityDataMean ,     # Mean value 
+                                                singleDayActivityDataMedian)
+                                                
+  colnames(singleDayActivityDataSummaryRow) = stepsSummaryDFColumnNames
+
+  #
+  # Append current dates summary data to the steps activiety date 
+  #
+  
+  stepsSummaryDF = rbind(stepsSummaryDF ,singleDayActivityDataSummaryRow)
+  
+  
+  ##################################################
+  #
+  #  Calculate step summary data for current date using the data set 
+  #  that has the rows with NA values removed.  Filling in stepsSummaryNoNaDF
+  #  
+  ##################################################
+  
+  if(nrow(singleDayActivityNoNaData)) {
+    
+    # Calcualte summary data 
+    
+    singleDayActivityDataNoNASum = sum( singleDayActivityNoNaData$steps )
+    singleDayActivityDataNoNAMean = mean( singleDayActivityNoNaData$steps )
+    singleDayActivityDataNoNAMedian = median( singleDayActivityNoNaData$steps )
+    
+    #
+    #  Create a data frame row with the sumary data for a day 
+    #
+  
+    singleDayActivityDataSummaryNoNaRow = data.frame( singleDate,
+                                                singleDayActivityDataNoNASum ,      # Sum value 
+                                                singleDayActivityDataNoNAMean ,     # Mean value 
+                                                singleDayActivityDataNoNAMedian)
+                                                
+  
+    colnames(singleDayActivityDataSummaryNoNaRow) = stepsSummaryDFColumnNames
+
+    #
+    # Append the row of step summary data to steps mean data frame 
+    #
+  
+    stepsSummaryNoNaDF = rbind(stepsSummaryNoNaDF ,singleDayActivityDataSummaryNoNaRow)
+    
+  } else {
+    #print("skip")
+  }
+}
+
+#
+#  Convert string date column to date fromat 
+#
+
+stepsSummaryDF$Date = as.Date(stepsSummaryDF$Date,"%Y-%m-%d" )
+stepsSummaryNoNaDF$Date = as.Date(stepsSummaryNoNaDF$Date,"%Y-%m-%d" )
+
+#
+# At this point the stepsSummaryDF contains all the sumary data 
+# for the steps per day.
+#
+
+print(head(stepsSummaryDF))
+print(head(stepsSummaryNoNaDF))
+
+```
+
+
+
+##  Total number of steps per day Histogram ( NA rows removed )
+
+
+
+```{r hist }
+
+  # We will use data set that has the rows with NA values removed 
+
+  TotalStepsPerDayData = stepsSummaryNoNaDF[,stepsSummaryDFTotalStepsPerDayColumnName]
+ 
+  hist(TotalStepsPerDayData,xlab="# of Steps Per Day")
+
+```
+
+## Output the mean and media summarydata ( NA rows removed )
+
+```{r}
+
+#
+#  Output the mean and media summary data with NA rows removed 
+#
+
+print(stepsSummaryNoNaDF[, c(stepsSummaryDFDateColumnName,                   # Date column 
+                             stepsSummaryDFMeanStepsPerDayColumnName,        # Means column 
+                             stepsSummaryDFMedianStepsPerDayColumnName) ])   # Median column 
+
+``` 
+
+
+## Time series ( NA rows removed )
+
+
+```{r time }
+
+
+plot(stepsSummaryNoNaDF[,stepsSummaryDFDateColumnName],                 # Date X Axis 
+     stepsSummaryNoNaDF[,stepsSummaryDFTotalStepsPerDayColumnName],     # Steps per day Y Axis  
+     type="n",                                                          # Dont draw now , 
+                                                                        # next line will draw it
+     xlab="Date" ,                                                      # X axis label
+     ylab="Total Step Per Day")                                         # Y axis label
+
+lines(stepsSummaryNoNaDF[,stepsSummaryDFDateColumnName],               # Date X Axis 
+      stepsSummaryNoNaDF[,stepsSummaryDFTotalStepsPerDayColumnName],   # Steps per day Y Axis  
+      type="l" )                                                       # Line graph              
+
+```
+
+##  Total number of steps per day Histogram ( NA replaced with 0 )
+
+
+```{r hist2 }
+
+  # use the data that has the NA replaced with 0 steps
+
+  TotalStepsPerDayData = stepsSummaryDF[,stepsSummaryDFTotalStepsPerDayColumnName]
+ 
+  hist(TotalStepsPerDayData,xlab="# of Steps Per Day")
+
+```
+
+## Output the mean and media summary data ( NA replaced with 0 )
+
+```{r}
+
+#
+#  Output the mean and media summary data with NA rows removed 
+#
+
+print(stepsSummaryDF[, c(stepsSummaryDFDateColumnName,                   # Date column 
+                         stepsSummaryDFMeanStepsPerDayColumnName,        # Means column 
+                         stepsSummaryDFMedianStepsPerDayColumnName) ])   # Median column 
+
+``` 
+
+
+## Panel Plot 
+
+
+```{r Panel }
+
+
+#
+# Process activety data to add Weekday column.  
+# Weekday or Weekend 
+#
+
+#
+# Add column with empty data 
+#
+
+activityData$Weekday = ""
+
+#
+# fill in NA values with 0 
+#
+
+activityDataNaFilter = as.logical(rowSums(is.na(activityData) == TRUE ))    #   Get row bit
+activityData$steps[activityDataNaFilter] = 0
+
+#
+# Loop threw each row of the activity table 
+# filling in the weekday column 
+#
+
+for(i in 1:nrow(activityData)) {
+  
+  # process date for weekend or weekday factore  
+
+  weekdayData =  weekdays(activityData[i,"date"])
+  
+  if(weekdayData == "Saturday" | weekdayData == "Saturday") {
+    activityData[i,"Weekday"] = "weekend"
+  } else {
+    activityData[i,"Weekday"] = "weekday"
+  }
+}
+
+
+#
+# Convert weekend / weekday data to a factore 
+#
+
+activityData$Weekday = factor(activityData$Weekday,
+                                levels=c("weekday","weekend"))
+
+#print( head(activityData) )
+
+#
+# Panel plot 
+#
+
+library(lattice)
+
+xyplot(steps ~ interval | Weekday, data = activityData, type="l",layout = c(1,2) )
+
+
+```
+
+
+
+
+
+
+
+
+
+
